@@ -36,7 +36,9 @@ namespace Rochas.Net.Connectivity
                         _logger.LogInformation($"Tentando realizar chamada para {queueItem.ServiceRoute}...");
 
                         queueItem.CallRetries--;
-                        await TryCall(queueItem);
+                        var result = await TryCall(queueItem);
+                        if (result)
+                            queueItem.CallRetries = 0;
                     }
                 }
             }
