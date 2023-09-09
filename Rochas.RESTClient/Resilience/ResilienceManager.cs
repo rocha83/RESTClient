@@ -1,5 +1,4 @@
 using System;
-using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,7 +11,7 @@ namespace Rochas.Net.Connectivity
     {
         private readonly ILogger _logger;
         private static ConcurrentQueue<ResilienceSet<T>> _callQueue
-            = new ConcurrentQueue<ResilienceSet<T>>();
+                         = new ConcurrentQueue<ResilienceSet<T>>();
 
         public ResilienceManager(ILogger logger)
         {
@@ -24,21 +23,25 @@ namespace Rochas.Net.Connectivity
 
         private async Task ListenResilienceQueue()
         {
-            _logger.LogInformation($"Monitorando fila de resiliência...");
+            _logger.LogInformation($"Monitoring resiliency queue...");
 
             while (true)
             {
-                if (ResilienceQueue<T>.HasItems)
+                if (!_callQueue.IsEmpty)
                 {
-                    var queueItem = ResilienceQueue<T>.Dequeue();
-                    if (queueItem != null && queueItem.CallRetries > 0)
+                    if (_callQueue.TryPeek(out var queueItem))
                     {
-                        _logger.LogInformation($"Tentando realizar chamada para {queueItem.ServiceRoute}...");
+                        if (queueItem.CallRetries > 0)
+                        {
+                            _logger.LogInformation($"Trying to make a call to {queueItem.ServiceRoute}...");
 
-                        queueItem.CallRetries--;
-                        var result = await TryCall(queueItem);
-                        if (result)
-                            queueItem.CallRetries = 0;
+                            queueItem.CallRetries--;
+                            var result = await TryCall(queueItem);
+                            if (result)
+                                queueItem.CallRetries = 0;
+                        }
+                        else
+                            _callQueue.TryDequeue(out var queueDeadItem);
                     }
                 }
             }
@@ -52,21 +55,22 @@ namespace Rochas.Net.Connectivity
             {
                 result = await CallByMethod(resilienceSet);
                 if (result)
-                    _logger.LogInformation($"Chamada para {resilienceSet.ServiceRoute} realizada com sucesso.");
-                else
-                    if (resilienceSet.FirstCall)
-                        SendToResilience(resilienceSet);
+                    _logger.LogInformation($"Call to {resilienceSet.ServiceRoute} made successfully.");
+                else if (resilienceSet.FirstCall)
+                {
+                    SendToResilience(resilienceSet);
+                }
             }
             catch (Exception ex)
             {
                 resilienceSet.LastError = ex.Message;
                 if (resilienceSet.FirstCall)
                 {
-                    _logger.LogWarning($"Problema ao realizar a chamada para {resilienceSet.ServiceRoute}.");
+                    _logger.LogWarning($"Problem making a call to {resilienceSet.ServiceRoute}.");
                     SendToResilience(resilienceSet);
                 }
                 else if (resilienceSet.CallRetries == 0)
-                    _logger.LogError($"Erro ao realizar a chamada para {resilienceSet.ServiceRoute}: {Environment.NewLine} {ex.Message}");
+                    _logger.LogError($"Error making the call to {resilienceSet.ServiceRoute}: {Environment.NewLine} {ex.Message}");
             }
 
             return result;
@@ -78,24 +82,28 @@ namespace Rochas.Net.Connectivity
             using (var client = new RESTClient<T>())
             {
                 if (resilienceSet.CallMethod == HttpMethod.Post)
-                    await client.Post(resilienceSet.ServiceRoute,
-                                      resilienceSet.PayLoad);
+                    result = await client.Post(resilienceSet.ServiceRoute,
+                                               resilienceSet.PayLoad,
+                                               resilienceSet.CallTimeout);
                 else if (resilienceSet.CallMethod == HttpMethod.Put)
-                    await client.Put(resilienceSet.ServiceRoute,
-                                     resilienceSet.PayLoad);
+                    result = await client.Put(resilienceSet.ServiceRoute,
+                                              resilienceSet.PayLoad,
+                                              resilienceSet.CallTimeout);
                 else if (resilienceSet.CallMethod == HttpMethod.Patch)
-                    await client.Patch(resilienceSet.ServiceRoute,
-                                                  resilienceSet.PayLoad);
+                    result = await client.Patch(resilienceSet.ServiceRoute,
+                                                resilienceSet.PayLoad, 
+                                                resilienceSet.CallTimeout);
                 else if (resilienceSet.CallMethod == HttpMethod.Delete)
-                    await client.Patch(resilienceSet.ServiceRoute,
-                                                  resilienceSet.PayLoad);
+                    result = await client.Patch(resilienceSet.ServiceRoute,
+                                                resilienceSet.PayLoad, 
+                                                resilienceSet.CallTimeout);
                 return result;
             }
         }
 
         private void SendToResilience(ResilienceSet<T> resilienceSet)
         {
-            _logger.LogInformation($"Enviando chamada para {resilienceSet.ServiceRoute} à fila de resiliência...");
+            _logger.LogInformation($"Sending call for {resilienceSet.ServiceRoute} to resilience queue...");
 
             resilienceSet.FirstCall = false;
             _callQueue.Enqueue(resilienceSet);

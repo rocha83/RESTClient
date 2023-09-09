@@ -26,7 +26,7 @@ namespace Rochas.Net.Connectivity
 
         public RESTClient() {}
 
-        public RESTClient(ILogger logger, short callRetries)
+        public RESTClient(ILogger<T> logger, short callRetries)
         {
             _callRetries = callRetries;
             _resilienceManager = new ResilienceManager<T>(logger);
@@ -353,7 +353,9 @@ namespace Rochas.Net.Connectivity
 
         public void Dispose()
         {
-            _resilienceManager.Dispose();
+            if (_resilienceManager != null)
+                _resilienceManager.Dispose();
+
             GC.ReRegisterForFinalize(this);
         }
 

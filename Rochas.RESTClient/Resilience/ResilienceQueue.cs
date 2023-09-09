@@ -27,10 +27,5 @@ namespace Rochas.Net.Connectivity
 
             return queueItem;
         }
-
-        public static bool HasItems
-        {
-            get { return !queue.IsEmpty; }
-        }
     }
 }
