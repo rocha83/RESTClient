@@ -5,9 +5,9 @@
     <Nullable>enable</Nullable>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
     <Authors>Renato Rocha</Authors>
-    <Description>A lightweight generic and resilient REST client </Description>
+    <Description>A lightweight generic and resilient RESTful client</Description>
     <Copyright>Renato Rocha</Copyright>
-    <PackageTags>REST light lightweight generic resilient smart sync synchronous async asynchronous call retries</PackageTags>
+    <PackageTags>REST RESTful light lightweight generic resilient smart sync synchronous async asynchronous call retries</PackageTags>
     <PackageLicenseFile>GNUv2_License.txt</PackageLicenseFile>
     <PackageIcon>restful-icon.jpg</PackageIcon>
   </PropertyGroup>
