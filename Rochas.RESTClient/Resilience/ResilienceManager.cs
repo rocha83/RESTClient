@@ -60,6 +60,9 @@ namespace Rochas.Net.Connectivity
                 {
                     SendToResilience(resilienceSet);
                 }
+
+                if (resilienceSet.RetriesDelay > 0)
+                    Thread.Sleep(resilienceSet.RetriesDelay);
             }
             catch (Exception ex)
             {

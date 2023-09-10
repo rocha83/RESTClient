@@ -8,14 +8,15 @@ namespace Rochas.Net.Connectivity
         public ResilienceSet()
         {
         }
-        public ResilienceSet(string route, HttpMethod method, int timeout, short retries, T payLoad = default(T))
+        public ResilienceSet(string route, HttpMethod method, int timeout, short retries, int retriesDelay, T payLoad = default(T))
         {
             PayLoad = payLoad;
 
             ServiceRoute = route;
             CallMethod = method;
-            CallRetries = retries;
             CallTimeout = timeout;
+            CallRetries = retries;
+            RetriesDelay = retriesDelay;
 
             FirstCall = true;
         }
@@ -25,10 +26,12 @@ namespace Rochas.Net.Connectivity
         public T PayLoad { get; set; }
         
         public HttpMethod CallMethod { get; set; }
-        
-        public short CallRetries { get; set; }
 
         public int CallTimeout { get; set; }
+
+        public short CallRetries { get; set; }
+
+        public int RetriesDelay { get; set; }
 
         public string LastError { get; set; }
 

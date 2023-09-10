@@ -17,6 +17,7 @@ namespace Rochas.Net.Connectivity
         private static readonly string emptySvcRouteMsg = "Invalid service route";
         private readonly ResilienceManager<T> _resilienceManager;
         private readonly short _callRetries;
+        private readonly int _retriesDelay;
 
         private HttpResponseMessage? response;
 
@@ -26,7 +27,7 @@ namespace Rochas.Net.Connectivity
 
         public RESTClient() {}
 
-        public RESTClient(ILogger<T> logger, short callRetries)
+        public RESTClient(ILogger<T> logger, short callRetries, int retriesDelay)
         {
             _callRetries = callRetries;
             _resilienceManager = new ResilienceManager<T>(logger);
@@ -110,7 +111,8 @@ namespace Rochas.Net.Connectivity
                     response = await restCall.PostAsJsonAsync(serviceRoute, payLoad);
                 else
                 {
-                    var resilienceSet = new ResilienceSet<T>(serviceRoute, HttpMethod.Post, timeout, _callRetries, payLoad);
+                    var resilienceSet = new ResilienceSet<T>(serviceRoute, HttpMethod.Post, timeout, 
+                                                             _callRetries, _retriesDelay, payLoad);
                     return await _resilienceManager.TryCall(resilienceSet);
                 }
 
@@ -148,7 +150,7 @@ namespace Rochas.Net.Connectivity
                     response = await restCall.PutAsJsonAsync(serviceRoute, payLoad);
                 else
                 {
-                    var resilienceSet = new ResilienceSet<T>(serviceRoute, HttpMethod.Put, timeout, _callRetries, payLoad);
+                    var resilienceSet = new ResilienceSet<T>(serviceRoute, HttpMethod.Put, timeout, _callRetries, _retriesDelay, payLoad);
                     return await _resilienceManager.TryCall(resilienceSet);
                 }
 
@@ -185,7 +187,7 @@ namespace Rochas.Net.Connectivity
                     response = await restCall.PatchAsJsonAsync(serviceRoute, payLoad);
                 else
                 {
-                    var resilienceSet = new ResilienceSet<T>(serviceRoute, HttpMethod.Patch, timeout, _callRetries, payLoad);
+                    var resilienceSet = new ResilienceSet<T>(serviceRoute, HttpMethod.Patch, timeout, _callRetries, _retriesDelay, payLoad);
                     return await _resilienceManager.TryCall(resilienceSet);
                 }
 
@@ -223,7 +225,7 @@ namespace Rochas.Net.Connectivity
                     response = await restCall.DeleteAsync(serviceRouteId);
                 else
                 {
-                    var resilienceSet = new ResilienceSet<T>(serviceRoute, HttpMethod.Delete, timeout, _callRetries);
+                    var resilienceSet = new ResilienceSet<T>(serviceRoute, HttpMethod.Delete, timeout, _callRetries, _retriesDelay);
                     return await _resilienceManager.TryCall(resilienceSet);
                 }
 
@@ -245,7 +247,7 @@ namespace Rochas.Net.Connectivity
                     response = await restCall.DeleteAsync(serviceRouteId);
                 else
                 {
-                    var resilienceSet = new ResilienceSet<T>(serviceRoute, HttpMethod.Delete, timeout, _callRetries);
+                    var resilienceSet = new ResilienceSet<T>(serviceRoute, HttpMethod.Delete, timeout, _callRetries, _retriesDelay);
                     return await _resilienceManager.TryCall(resilienceSet);
                 }
 
