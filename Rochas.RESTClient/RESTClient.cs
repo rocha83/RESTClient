@@ -27,9 +27,10 @@ namespace Rochas.Net.Connectivity
 
         public RESTClient() {}
 
-        public RESTClient(ILogger<T> logger, short callRetries, int retriesDelay)
+        public RESTClient(ILogger<T> logger, short callRetries, int retriesDelay = 0)
         {
             _callRetries = callRetries;
+            _retriesDelay = retriesDelay;
             _resilienceManager = new ResilienceManager<T>(logger);
             UseResilience = true;
         }
@@ -150,7 +151,8 @@ namespace Rochas.Net.Connectivity
                     response = await restCall.PutAsJsonAsync(serviceRoute, payLoad);
                 else
                 {
-                    var resilienceSet = new ResilienceSet<T>(serviceRoute, HttpMethod.Put, timeout, _callRetries, _retriesDelay, payLoad);
+                    var resilienceSet = new ResilienceSet<T>(serviceRoute, HttpMethod.Put, timeout, 
+                                                             _callRetries, _retriesDelay, payLoad);
                     return await _resilienceManager.TryCall(resilienceSet);
                 }
 
@@ -187,7 +189,8 @@ namespace Rochas.Net.Connectivity
                     response = await restCall.PatchAsJsonAsync(serviceRoute, payLoad);
                 else
                 {
-                    var resilienceSet = new ResilienceSet<T>(serviceRoute, HttpMethod.Patch, timeout, _callRetries, _retriesDelay, payLoad);
+                    var resilienceSet = new ResilienceSet<T>(serviceRoute, HttpMethod.Patch, timeout, 
+                                                             _callRetries, _retriesDelay, payLoad);
                     return await _resilienceManager.TryCall(resilienceSet);
                 }
 
