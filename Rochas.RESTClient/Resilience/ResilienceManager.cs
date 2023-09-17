@@ -60,9 +60,6 @@ namespace Rochas.Net.Connectivity
                 {
                     SendToResilience(resilienceSet);
                 }
-
-                if (resilienceSet.RetriesDelay > 0)
-                    Thread.Sleep(resilienceSet.RetriesDelay);
             }
             catch (Exception ex)
             {
@@ -75,6 +72,9 @@ namespace Rochas.Net.Connectivity
                 else if (resilienceSet.CallRetries == 0)
                     _logger.LogError($"Error making the call to {resilienceSet.ServiceRoute}: {Environment.NewLine} {ex.Message}");
             }
+
+            if (resilienceSet.RetriesDelay > 0)
+                Thread.Sleep(resilienceSet.RetriesDelay);
 
             return result;
         }
