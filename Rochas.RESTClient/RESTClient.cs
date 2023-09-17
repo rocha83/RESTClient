@@ -5,6 +5,7 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using System.Net.Http.Json;
 using Microsoft.Extensions.Logging;
+using System.Collections.Generic;
 
 namespace Rochas.Net.Connectivity
 {
@@ -45,13 +46,12 @@ namespace Rochas.Net.Connectivity
 
         #region Public Async Methods
 
-        public async Task<T> Get(string serviceRoute, int timeout = 0)
+        public async Task<T> Get(string serviceRoute, IDictionary<string, string>? headers = null, int timeout = 0)
         {
             using var restCall = new HttpClient();
             if (!string.IsNullOrWhiteSpace(serviceRoute))
             {
-                if (timeout > 0)
-                    restCall.Timeout = TimeSpan.FromSeconds(timeout);
+                ConfigureHeadersAndTimeout(restCall, headers, timeout);
 
                 response = await restCall.GetAsync(serviceRoute);
 
@@ -61,14 +61,13 @@ namespace Rochas.Net.Connectivity
                 throw new ArgumentException(emptySvcRouteMsg);
         }
 
-        public async Task<T> Get(string serviceRoute, string id, int timeout = 0)
+        public async Task<T> Get(string serviceRoute, string id, IDictionary<string, string>? headers = null, int timeout = 0)
         {
             using (var restCall = new HttpClient())
             {
                 if (!string.IsNullOrWhiteSpace(serviceRoute))
                 {
-                    if (timeout > 0)
-                        restCall.Timeout = TimeSpan.FromSeconds(timeout);
+                    ConfigureHeadersAndTimeout(restCall, headers, timeout);
 
                     var serviceRouteId = string.Format(urlFormat, serviceRoute, id);
                     response = await restCall.GetAsync(serviceRouteId);
@@ -80,14 +79,13 @@ namespace Rochas.Net.Connectivity
             }
         }
 
-        public async Task<T> GetWithParams(string serviceRoute, string parameters, int timeout = 0)
+        public async Task<T> GetWithParams(string serviceRoute, string parameters, IDictionary<string, string>? headers, int timeout = 0)
         {
             using (var restCall = new HttpClient())
             {
                 if (!string.IsNullOrWhiteSpace(serviceRoute))
                 {
-                    if (timeout > 0)
-                        restCall.Timeout = TimeSpan.FromSeconds(timeout);
+                    ConfigureHeadersAndTimeout(restCall, headers, timeout);
 
                     var encodedParams = EncodeParameterValues(parameters);
                     var serviceRouteParam = string.Format(urlParamFormat, serviceRoute, encodedParams);
@@ -100,20 +98,19 @@ namespace Rochas.Net.Connectivity
             }
         }
 
-        public async Task<bool> Post(string serviceRoute, T payLoad, int timeout = 0)
+        public async Task<bool> Post(string serviceRoute, T payLoad, IDictionary<string, string>? headers, int timeout = 0)
         {
             using var restCall = new HttpClient();
             if (!string.IsNullOrWhiteSpace(serviceRoute))
             {
-                if (timeout > 0)
-                    restCall.Timeout = TimeSpan.FromSeconds(timeout);
+                ConfigureHeadersAndTimeout(restCall, headers, timeout);
 
                 if (!UseResilience)
                     response = await restCall.PostAsJsonAsync(serviceRoute, payLoad);
                 else
                 {
                     var resilienceSet = new ResilienceSet<T>(serviceRoute, HttpMethod.Post, timeout, 
-                                                             _callRetries, _retriesDelay, payLoad);
+                                                             _callRetries, _retriesDelay, headers, payLoad);
                     return await _resilienceManager.TryCall(resilienceSet);
                 }
 
@@ -123,13 +120,12 @@ namespace Rochas.Net.Connectivity
             throw new InvalidOperationException(emptySvcRouteMsg);
         }
 
-        public async Task<R> PostWithResponse<R>(string serviceRoute, T payLoad, int timeout = 0)
+        public async Task<R> PostWithResponse<R>(string serviceRoute, T payLoad, IDictionary<string, string>? headers = null, int timeout = 0)
         {
             using var restCall = new HttpClient();
             if (!string.IsNullOrWhiteSpace(serviceRoute))
             {
-                if (timeout > 0)
-                    restCall.Timeout = TimeSpan.FromSeconds(timeout);
+                ConfigureHeadersAndTimeout(restCall, headers, timeout);
 
                 response = await restCall.PostAsJsonAsync(serviceRoute, payLoad);
 
@@ -139,20 +135,19 @@ namespace Rochas.Net.Connectivity
             throw new InvalidOperationException(emptySvcRouteMsg);
         }
 
-        public async Task<bool> Put(string serviceRoute, T payLoad, int timeout = 0)
+        public async Task<bool> Put(string serviceRoute, T payLoad, IDictionary<string, string>? headers = null, int timeout = 0)
         {
             using var restCall = new HttpClient();
             if (!string.IsNullOrWhiteSpace(serviceRoute))
             {
-                if (timeout > 0)
-                    restCall.Timeout = TimeSpan.FromSeconds(timeout);
+                ConfigureHeadersAndTimeout(restCall, headers, timeout);
 
                 if (!UseResilience)
                     response = await restCall.PutAsJsonAsync(serviceRoute, payLoad);
                 else
                 {
                     var resilienceSet = new ResilienceSet<T>(serviceRoute, HttpMethod.Put, timeout, 
-                                                             _callRetries, _retriesDelay, payLoad);
+                                                             _callRetries, _retriesDelay, headers, payLoad);
                     return await _resilienceManager.TryCall(resilienceSet);
                 }
 
@@ -161,13 +156,12 @@ namespace Rochas.Net.Connectivity
             throw new InvalidOperationException(emptySvcRouteMsg);
         }
 
-        public async Task<R> PutWithResponse<R>(string serviceRoute, T payLoad, int timeout = 0)
+        public async Task<R> PutWithResponse<R>(string serviceRoute, T payLoad, IDictionary<string, string>? headers = null, int timeout = 0)
         {
             using var restCall = new HttpClient();
             if (!string.IsNullOrWhiteSpace(serviceRoute))
             {
-                if (timeout > 0)
-                    restCall.Timeout = TimeSpan.FromSeconds(timeout);
+                ConfigureHeadersAndTimeout(restCall, headers, timeout);
 
                 response = await restCall.PutAsJsonAsync(serviceRoute, payLoad);
 
@@ -177,20 +171,19 @@ namespace Rochas.Net.Connectivity
             throw new InvalidOperationException(emptySvcRouteMsg);
         }
 
-        public async Task<bool> Patch(string serviceRoute, T payLoad, int timeout = 0)
+        public async Task<bool> Patch(string serviceRoute, T payLoad, IDictionary<string, string>? headers = null, int timeout = 0)
         {
             using var restCall = new HttpClient();
             if (!string.IsNullOrWhiteSpace(serviceRoute))
             {
-                if (timeout > 0)
-                    restCall.Timeout = TimeSpan.FromSeconds(timeout);
+                ConfigureHeadersAndTimeout(restCall, headers, timeout);
 
                 if (!UseResilience)
                     response = await restCall.PatchAsJsonAsync(serviceRoute, payLoad);
                 else
                 {
                     var resilienceSet = new ResilienceSet<T>(serviceRoute, HttpMethod.Patch, timeout, 
-                                                             _callRetries, _retriesDelay, payLoad);
+                                                             _callRetries, _retriesDelay, headers, payLoad);
                     return await _resilienceManager.TryCall(resilienceSet);
                 }
 
@@ -199,13 +192,12 @@ namespace Rochas.Net.Connectivity
             throw new InvalidOperationException(emptySvcRouteMsg);
         }
 
-        public async Task<R> PatchWithResponse<R>(string serviceRoute, T payLoad, int timeout = 0)
+        public async Task<R> PatchWithResponse<R>(string serviceRoute, T payLoad, IDictionary<string, string>? headers = null, int timeout = 0)
         {
             using var restCall = new HttpClient();
             if (!string.IsNullOrWhiteSpace(serviceRoute))
             {
-                if (timeout > 0)
-                    restCall.Timeout = TimeSpan.FromSeconds(timeout);
+                ConfigureHeadersAndTimeout(restCall, headers, timeout);
 
                 response = await restCall.PatchAsJsonAsync(serviceRoute, payLoad);
 
@@ -215,13 +207,12 @@ namespace Rochas.Net.Connectivity
             throw new InvalidOperationException(emptySvcRouteMsg);
         }
 
-        public async Task<bool> Delete(string serviceRoute, string id, int timeout = 0)
+        public async Task<bool> Delete(string serviceRoute, string id, IDictionary<string, string>? headers = null, int timeout = 0)
         {
             using var restCall = new HttpClient();
             if (!string.IsNullOrWhiteSpace(serviceRoute))
             {
-                if (timeout > 0)
-                    restCall.Timeout = TimeSpan.FromSeconds(timeout);
+                ConfigureHeadersAndTimeout(restCall, headers, timeout);
 
                 var serviceRouteId = string.Format(urlFormat, serviceRoute, id);
                 if (!UseResilience)
@@ -237,13 +228,13 @@ namespace Rochas.Net.Connectivity
             throw new InvalidOperationException(emptySvcRouteMsg);
         }
 
-        public async Task<bool> DeleteWithParams(string serviceRoute, string parameters, int timeout = 0)
+        public async Task<bool> DeleteWithParams(string serviceRoute, string parameters, 
+                                                 IDictionary<string, string>? headers = null, int timeout = 0)
         {
             using var restCall = new HttpClient();
             if (!string.IsNullOrWhiteSpace(serviceRoute))
             {
-                if (timeout > 0)
-                    restCall.Timeout = TimeSpan.FromSeconds(timeout);
+                ConfigureHeadersAndTimeout(restCall, headers, timeout);
 
                 var serviceRouteId = string.Format(urlParamFormat, serviceRoute, parameters);
                 if (!UseResilience)
@@ -263,65 +254,76 @@ namespace Rochas.Net.Connectivity
 
         #region Public Sync Methods
 
-        public T GetSync(string serviceRoute, int timeout = 0)
+        public T GetSync(string serviceRoute, IDictionary<string, string>? headers = null, int timeout = 0)
         {
-            return Get(serviceRoute, timeout).Result;
+            return Get(serviceRoute, headers, timeout).Result;
         }
 
-        public T GetSybnc(string serviceRoute, string id, int timeout = 0)
+        public T GetSybnc(string serviceRoute, string id, IDictionary<string, string>? headers = null, int timeout = 0)
         {
-            return Get(serviceRoute, id, timeout).Result;
+            return Get(serviceRoute, id, headers, timeout).Result;
         }
 
-        public T GetWithParamsSync(string serviceRoute, string parameters, int timeout = 0)
+        public T GetWithParamsSync(string serviceRoute, string parameters, IDictionary<string, string>? headers = null, int timeout = 0)
         {
-            return GetWithParams(serviceRoute, parameters, timeout).Result;
+            return GetWithParams(serviceRoute, parameters, headers, timeout).Result;
         }
 
-        public bool PostSync(string serviceRoute, T payLoad, int timeout = 0)
+        public bool PostSync(string serviceRoute, T payLoad, IDictionary<string, string>? headers, int timeout = 0)
         {
-            return Post(serviceRoute, payLoad, timeout).Result;
+            return Post(serviceRoute, payLoad, headers,timeout).Result;
         }
 
-        public R PostWithResponseSync<R>(string serviceRoute, T payLoad, int timeout = 0)
+        public R PostWithResponseSync<R>(string serviceRoute, T payLoad, IDictionary<string, string>? headers, int timeout = 0)
         {
-            return PostWithResponse<R>(serviceRoute, payLoad, timeout).Result;
+            return PostWithResponse<R>(serviceRoute, payLoad, headers, timeout).Result;
         }
 
-        public bool PutSync(string serviceRoute, T payLoad, int timeout = 0)
+        public bool PutSync(string serviceRoute, T payLoad, IDictionary<string, string>? headers, int timeout = 0)
         {
-            return Put(serviceRoute, payLoad, timeout).Result;
+            return Put(serviceRoute, payLoad, headers, timeout).Result;
         }
 
-        public R PutWithResponseSync<R>(string serviceRoute, T payLoad, int timeout = 0)
+        public R PutWithResponseSync<R>(string serviceRoute, T payLoad, IDictionary<string, string>? headers, int timeout = 0)
         {
-            return PutWithResponse<R>(serviceRoute, payLoad, timeout).Result;
+            return PutWithResponse<R>(serviceRoute, payLoad, headers, timeout).Result;
         }
 
-        public bool PatchSync(string serviceRoute, T payLoad, int timeout = 0)
+        public bool PatchSync(string serviceRoute, T payLoad, IDictionary<string, string>? headers, int timeout = 0)
         {
-            return Patch(serviceRoute, payLoad, timeout).Result;
+            return Patch(serviceRoute, payLoad, headers, timeout).Result;
         }
 
-        public R PatchWithResponseSync<R>(string serviceRoute, T payLoad, int timeout = 0)
+        public R PatchWithResponseSync<R>(string serviceRoute, T payLoad, IDictionary<string, string>? headers, int timeout = 0)
         {
-            return PatchWithResponse<R>(serviceRoute, payLoad, timeout).Result;
+            return PatchWithResponse<R>(serviceRoute, payLoad, headers, timeout).Result;
         }
 
-        public bool DeleteSync(string serviceRoute, string id, int timeout = 0)
+        public bool DeleteSync(string serviceRoute, string id, IDictionary<string, string>? headers, int timeout = 0)
         {
-            return Delete(serviceRoute, id, timeout).Result;
+            return Delete(serviceRoute, id, headers, timeout).Result;
         }
 
-        public bool DeleteWithParamsSync(string serviceRoute, string parameters, int timeout = 0)
+        public bool DeleteWithParamsSync(string serviceRoute, string parameters, IDictionary<string, string>? headers, int timeout = 0)
         {
-            return DeleteWithParams(serviceRoute, parameters, timeout).Result;
+            return DeleteWithParams(serviceRoute, parameters, headers, timeout).Result;
         }
 
         #endregion
 
         #region Helper Methods
-        private static string EncodeParameterValues(string parameters)
+
+        private static void ConfigureHeadersAndTimeout(HttpClient restCall, IDictionary<string, string>? headers = null, int timeout = 0)
+        {
+            if (headers != null)
+                foreach (var header in headers)
+                    restCall.DefaultRequestHeaders.Add(header.Key, header.Value);
+
+            if (timeout > 0)
+                restCall.Timeout = TimeSpan.FromSeconds(timeout);
+        }
+
+        private static string? EncodeParameterValues(string parameters)
         {
             StringBuilder preResult = new StringBuilder();
             var arrParams = parameters.Split('&');

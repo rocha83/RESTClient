@@ -87,18 +87,22 @@ namespace Rochas.Net.Connectivity
                 if (resilienceSet.CallMethod == HttpMethod.Post)
                     result = await client.Post(resilienceSet.ServiceRoute,
                                                resilienceSet.PayLoad,
+                                               resilienceSet.CallHeaders,
                                                resilienceSet.CallTimeout);
                 else if (resilienceSet.CallMethod == HttpMethod.Put)
                     result = await client.Put(resilienceSet.ServiceRoute,
                                               resilienceSet.PayLoad,
+                                              resilienceSet.CallHeaders,
                                               resilienceSet.CallTimeout);
                 else if (resilienceSet.CallMethod == HttpMethod.Patch)
                     result = await client.Patch(resilienceSet.ServiceRoute,
-                                                resilienceSet.PayLoad, 
+                                                resilienceSet.PayLoad,
+                                                resilienceSet.CallHeaders,
                                                 resilienceSet.CallTimeout);
                 else if (resilienceSet.CallMethod == HttpMethod.Delete)
                     result = await client.Patch(resilienceSet.ServiceRoute,
-                                                resilienceSet.PayLoad, 
+                                                resilienceSet.PayLoad,
+                                                resilienceSet.CallHeaders,
                                                 resilienceSet.CallTimeout);
                 return result;
             }
