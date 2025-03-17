@@ -79,7 +79,7 @@ namespace Rochas.Net.Connectivity
             }
         }
 
-        public async Task<T> GetWithParams(string serviceRoute, string parameters, IDictionary<string, string>? headers, int timeout = 0)
+        public async Task<T> GetWithParams(string serviceRoute, string parameters, IDictionary<string, string>? headers = null, int timeout = 0)
         {
             using (var restCall = new HttpClient())
             {
@@ -98,7 +98,7 @@ namespace Rochas.Net.Connectivity
             }
         }
 
-        public async Task<bool> Post(string serviceRoute, T payLoad, IDictionary<string, string>? headers, int timeout = 0)
+        public async Task<bool> Post(string serviceRoute, T payLoad, IDictionary<string, string>? headers = null, int timeout = 0)
         {
             using var restCall = new HttpClient();
             if (!string.IsNullOrWhiteSpace(serviceRoute))
@@ -269,42 +269,42 @@ namespace Rochas.Net.Connectivity
             return GetWithParams(serviceRoute, parameters, headers, timeout).Result;
         }
 
-        public bool PostSync(string serviceRoute, T payLoad, IDictionary<string, string>? headers, int timeout = 0)
+        public bool PostSync(string serviceRoute, T payLoad, IDictionary<string, string>? headers = null, int timeout = 0)
         {
             return Post(serviceRoute, payLoad, headers,timeout).Result;
         }
 
-        public R PostWithResponseSync<R>(string serviceRoute, T payLoad, IDictionary<string, string>? headers, int timeout = 0)
+        public R PostWithResponseSync<R>(string serviceRoute, T payLoad, IDictionary<string, string>? headers = null, int timeout = 0)
         {
             return PostWithResponse<R>(serviceRoute, payLoad, headers, timeout).Result;
         }
 
-        public bool PutSync(string serviceRoute, T payLoad, IDictionary<string, string>? headers, int timeout = 0)
+        public bool PutSync(string serviceRoute, T payLoad, IDictionary<string, string>? headers = null, int timeout = 0)
         {
             return Put(serviceRoute, payLoad, headers, timeout).Result;
         }
 
-        public R PutWithResponseSync<R>(string serviceRoute, T payLoad, IDictionary<string, string>? headers, int timeout = 0)
+        public R PutWithResponseSync<R>(string serviceRoute, T payLoad, IDictionary<string, string>? headers = null, int timeout = 0)
         {
             return PutWithResponse<R>(serviceRoute, payLoad, headers, timeout).Result;
         }
 
-        public bool PatchSync(string serviceRoute, T payLoad, IDictionary<string, string>? headers, int timeout = 0)
+        public bool PatchSync(string serviceRoute, T payLoad, IDictionary<string, string>? headers = null, int timeout = 0)
         {
             return Patch(serviceRoute, payLoad, headers, timeout).Result;
         }
 
-        public R PatchWithResponseSync<R>(string serviceRoute, T payLoad, IDictionary<string, string>? headers, int timeout = 0)
+        public R PatchWithResponseSync<R>(string serviceRoute, T payLoad, IDictionary<string, string>? headers = null, int timeout = 0)
         {
             return PatchWithResponse<R>(serviceRoute, payLoad, headers, timeout).Result;
         }
 
-        public bool DeleteSync(string serviceRoute, string id, IDictionary<string, string>? headers, int timeout = 0)
+        public bool DeleteSync(string serviceRoute, string id, IDictionary<string, string>? headers = null, int timeout = 0)
         {
             return Delete(serviceRoute, id, headers, timeout).Result;
         }
 
-        public bool DeleteWithParamsSync(string serviceRoute, string parameters, IDictionary<string, string>? headers, int timeout = 0)
+        public bool DeleteWithParamsSync(string serviceRoute, string parameters, IDictionary<string, string>? headers = null, int timeout = 0)
         {
             return DeleteWithParams(serviceRoute, parameters, headers, timeout).Result;
         }
