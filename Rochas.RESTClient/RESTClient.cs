@@ -259,7 +259,7 @@ namespace Rochas.Net.Connectivity
             return Get(serviceRoute, headers, timeout).Result;
         }
 
-        public T GetSybnc(string serviceRoute, string id, IDictionary<string, string>? headers = null, int timeout = 0)
+        public T GetSync(string serviceRoute, string id, IDictionary<string, string>? headers = null, int timeout = 0)
         {
             return Get(serviceRoute, id, headers, timeout).Result;
         }
