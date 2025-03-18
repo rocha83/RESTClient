@@ -10,7 +10,7 @@
     <PackageTags>REST RESTful light lightweight generic resilient client smart sync synchronous async asynchronous call retries</PackageTags>
     <PackageLicenseFile>GNUv2_License.txt</PackageLicenseFile>
     <PackageIcon>restful-icon.jpg</PackageIcon>
-    <Version>1.0.6</Version>
+    <Version>1.0.7</Version>
     <RepositoryUrl>https://github.com/rocha83/RESTClient</RepositoryUrl>
     <RepositoryType>Git</RepositoryType>
     <PackageReleaseNotes>Added http headers support</PackageReleaseNotes>
