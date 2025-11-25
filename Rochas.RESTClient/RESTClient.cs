@@ -1,11 +1,9 @@
 ﻿using System;
-using System.Web;
-using System.Text;
 using System.Net.Http;
-using System.Threading.Tasks;
 using System.Net.Http.Json;
-using Microsoft.Extensions.Logging;
+using System.Threading.Tasks;
 using System.Collections.Generic;
+using Microsoft.Extensions.Logging;
 
 namespace Rochas.Net.Connectivity
 {
@@ -16,17 +14,18 @@ namespace Rochas.Net.Connectivity
         private static readonly string urlFormat = "{0}/{1}";
         private static readonly string urlParamFormat = "{0}?{1}";
         private static readonly string emptySvcRouteMsg = "Invalid service route";
+
         private readonly ResilienceManager<T> _resilienceManager;
         private readonly short _callRetries;
         private readonly int _retriesDelay;
 
-        private HttpResponseMessage? response;
+        private static readonly HttpClient _httpClient = new HttpClient();
 
         #endregion
 
         #region Constructors
 
-        public RESTClient() {}
+        public RESTClient() { }
 
         public RESTClient(ILogger<T> logger, short callRetries, int retriesDelay = 0)
         {
@@ -48,266 +47,194 @@ namespace Rochas.Net.Connectivity
 
         public async Task<T> Get(string serviceRoute, IDictionary<string, string>? headers = null, int timeout = 0)
         {
-            using var restCall = new HttpClient();
-            if (!string.IsNullOrWhiteSpace(serviceRoute))
-            {
-                ConfigureHeadersAndTimeout(restCall, headers, timeout);
-
-                response = await restCall.GetAsync(serviceRoute);
-
-                return await response.Content.ReadFromJsonAsync<T>();
-            }
-            else
+            if (string.IsNullOrWhiteSpace(serviceRoute))
                 throw new ArgumentException(emptySvcRouteMsg);
+
+            ConfigureHeadersAndTimeout(_httpClient, headers, timeout);
+
+            var response = await _httpClient.GetAsync(serviceRoute);
+            return await response.Content.ReadFromJsonAsync<T>();
         }
 
         public async Task<T> Get(string serviceRoute, string id, IDictionary<string, string>? headers = null, int timeout = 0)
         {
-            using (var restCall = new HttpClient())
-            {
-                if (!string.IsNullOrWhiteSpace(serviceRoute))
-                {
-                    ConfigureHeadersAndTimeout(restCall, headers, timeout);
+            if (string.IsNullOrWhiteSpace(serviceRoute))
+                throw new ArgumentException(emptySvcRouteMsg);
 
-                    var serviceRouteId = string.Format(urlFormat, serviceRoute, id);
-                    response = await restCall.GetAsync(serviceRouteId);
-
-                    return await response.Content.ReadFromJsonAsync<T>();
-                }
-                else
-                    throw new ArgumentException(emptySvcRouteMsg);
-            }
+            var serviceRouteId = string.Format(urlFormat, serviceRoute, id);
+            return await Get(serviceRouteId, headers, timeout);
         }
 
-        public async Task<T> GetWithParams(string serviceRoute, string parameters, IDictionary<string, string>? headers = null, int timeout = 0)
+        public async Task<T> GetWithParams(string serviceRoute, IDictionary<string, string> parameters, IDictionary<string, string>? headers = null, int timeout = 0)
         {
-            using (var restCall = new HttpClient())
-            {
-                if (!string.IsNullOrWhiteSpace(serviceRoute))
-                {
-                    ConfigureHeadersAndTimeout(restCall, headers, timeout);
+            if (string.IsNullOrWhiteSpace(serviceRoute))
+                throw new ArgumentException(emptySvcRouteMsg);
 
-                    var encodedParams = EncodeParameterValues(parameters);
-                    var serviceRouteParam = string.Format(urlParamFormat, serviceRoute, encodedParams);
-                    response = await restCall.GetAsync(serviceRouteParam);
-
-                    return await response.Content.ReadFromJsonAsync<T>();
-                }
-                else
-                    throw new InvalidOperationException(emptySvcRouteMsg);
-            }
+            var query = EncodeParameters(parameters);
+            var serviceRouteParam = string.Format(urlParamFormat, serviceRoute, query);
+            return await Get(serviceRouteParam, headers, timeout);
         }
 
         public async Task<bool> Post(string serviceRoute, T payLoad, IDictionary<string, string>? headers = null, int timeout = 0)
         {
-            using var restCall = new HttpClient();
-            if (!string.IsNullOrWhiteSpace(serviceRoute))
+            if (string.IsNullOrWhiteSpace(serviceRoute))
+                throw new InvalidOperationException(emptySvcRouteMsg);
+
+            ConfigureHeadersAndTimeout(_httpClient, headers, timeout);
+
+            if (!UseResilience)
             {
-                ConfigureHeadersAndTimeout(restCall, headers, timeout);
-
-                if (!UseResilience)
-                    response = await restCall.PostAsJsonAsync(serviceRoute, payLoad);
-                else
-                {
-                    var resilienceSet = new ResilienceSet<T>(serviceRoute, HttpMethod.Post, timeout, 
-                                                             _callRetries, _retriesDelay, headers, payLoad);
-                    return await _resilienceManager.TryCall(resilienceSet);
-                }
-
+                var response = await _httpClient.PostAsJsonAsync(serviceRoute, payLoad);
                 return response.IsSuccessStatusCode;
             }
-
-            throw new InvalidOperationException(emptySvcRouteMsg);
+            else
+            {
+                var resilienceSet = new ResilienceSet<T>(serviceRoute, HttpMethod.Post, timeout, _callRetries, _retriesDelay, headers, payLoad);
+                return await _resilienceManager.TryCall(resilienceSet);
+            }
         }
 
         public async Task<R> PostWithResponse<R>(string serviceRoute, T payLoad, IDictionary<string, string>? headers = null, int timeout = 0)
         {
-            using var restCall = new HttpClient();
-            if (!string.IsNullOrWhiteSpace(serviceRoute))
-            {
-                ConfigureHeadersAndTimeout(restCall, headers, timeout);
+            if (string.IsNullOrWhiteSpace(serviceRoute))
+                throw new InvalidOperationException(emptySvcRouteMsg);
 
-                response = await restCall.PostAsJsonAsync(serviceRoute, payLoad);
+            ConfigureHeadersAndTimeout(_httpClient, headers, timeout);
 
-                return await response.Content.ReadFromJsonAsync<R>();
-            }
-
-            throw new InvalidOperationException(emptySvcRouteMsg);
+            var response = await _httpClient.PostAsJsonAsync(serviceRoute, payLoad);
+            return await response.Content.ReadFromJsonAsync<R>();
         }
 
         public async Task<bool> Put(string serviceRoute, T payLoad, IDictionary<string, string>? headers = null, int timeout = 0)
         {
-            using var restCall = new HttpClient();
-            if (!string.IsNullOrWhiteSpace(serviceRoute))
+            if (string.IsNullOrWhiteSpace(serviceRoute))
+                throw new InvalidOperationException(emptySvcRouteMsg);
+
+            ConfigureHeadersAndTimeout(_httpClient, headers, timeout);
+
+            if (!UseResilience)
             {
-                ConfigureHeadersAndTimeout(restCall, headers, timeout);
-
-                if (!UseResilience)
-                    response = await restCall.PutAsJsonAsync(serviceRoute, payLoad);
-                else
-                {
-                    var resilienceSet = new ResilienceSet<T>(serviceRoute, HttpMethod.Put, timeout, 
-                                                             _callRetries, _retriesDelay, headers, payLoad);
-                    return await _resilienceManager.TryCall(resilienceSet);
-                }
-
+                var response = await _httpClient.PutAsJsonAsync(serviceRoute, payLoad);
                 return response.IsSuccessStatusCode;
             }
-            throw new InvalidOperationException(emptySvcRouteMsg);
+            else
+            {
+                var resilienceSet = new ResilienceSet<T>(serviceRoute, HttpMethod.Put, timeout, _callRetries, _retriesDelay, headers, payLoad);
+                return await _resilienceManager.TryCall(resilienceSet);
+            }
         }
 
         public async Task<R> PutWithResponse<R>(string serviceRoute, T payLoad, IDictionary<string, string>? headers = null, int timeout = 0)
         {
-            using var restCall = new HttpClient();
-            if (!string.IsNullOrWhiteSpace(serviceRoute))
-            {
-                ConfigureHeadersAndTimeout(restCall, headers, timeout);
+            if (string.IsNullOrWhiteSpace(serviceRoute))
+                throw new InvalidOperationException(emptySvcRouteMsg);
 
-                response = await restCall.PutAsJsonAsync(serviceRoute, payLoad);
+            ConfigureHeadersAndTimeout(_httpClient, headers, timeout);
 
-                return await response.Content.ReadFromJsonAsync<R>();
-            }
-
-            throw new InvalidOperationException(emptySvcRouteMsg);
+            var response = await _httpClient.PutAsJsonAsync(serviceRoute, payLoad);
+            return await response.Content.ReadFromJsonAsync<R>();
         }
 
         public async Task<bool> Patch(string serviceRoute, T payLoad, IDictionary<string, string>? headers = null, int timeout = 0)
         {
-            using var restCall = new HttpClient();
-            if (!string.IsNullOrWhiteSpace(serviceRoute))
+            if (string.IsNullOrWhiteSpace(serviceRoute))
+                throw new InvalidOperationException(emptySvcRouteMsg);
+
+            ConfigureHeadersAndTimeout(_httpClient, headers, timeout);
+
+            if (!UseResilience)
             {
-                ConfigureHeadersAndTimeout(restCall, headers, timeout);
-
-                if (!UseResilience)
-                    response = await restCall.PatchAsJsonAsync(serviceRoute, payLoad);
-                else
-                {
-                    var resilienceSet = new ResilienceSet<T>(serviceRoute, HttpMethod.Patch, timeout, 
-                                                             _callRetries, _retriesDelay, headers, payLoad);
-                    return await _resilienceManager.TryCall(resilienceSet);
-                }
-
+                var response = await _httpClient.PatchAsJsonAsync(serviceRoute, payLoad);
                 return response.IsSuccessStatusCode;
             }
-            throw new InvalidOperationException(emptySvcRouteMsg);
+            else
+            {
+                var resilienceSet = new ResilienceSet<T>(serviceRoute, HttpMethod.Patch, timeout, _callRetries, _retriesDelay, headers, payLoad);
+                return await _resilienceManager.TryCall(resilienceSet);
+            }
         }
 
         public async Task<R> PatchWithResponse<R>(string serviceRoute, T payLoad, IDictionary<string, string>? headers = null, int timeout = 0)
         {
-            using var restCall = new HttpClient();
-            if (!string.IsNullOrWhiteSpace(serviceRoute))
-            {
-                ConfigureHeadersAndTimeout(restCall, headers, timeout);
+            if (string.IsNullOrWhiteSpace(serviceRoute))
+                throw new InvalidOperationException(emptySvcRouteMsg);
 
-                response = await restCall.PatchAsJsonAsync(serviceRoute, payLoad);
+            ConfigureHeadersAndTimeout(_httpClient, headers, timeout);
 
-                return await response.Content.ReadFromJsonAsync<R>();
-            }
-
-            throw new InvalidOperationException(emptySvcRouteMsg);
+            var response = await _httpClient.PatchAsJsonAsync(serviceRoute, payLoad);
+            return await response.Content.ReadFromJsonAsync<R>();
         }
 
         public async Task<bool> Delete(string serviceRoute, string id, IDictionary<string, string>? headers = null, int timeout = 0)
         {
-            using var restCall = new HttpClient();
-            if (!string.IsNullOrWhiteSpace(serviceRoute))
+            if (string.IsNullOrWhiteSpace(serviceRoute))
+                throw new InvalidOperationException(emptySvcRouteMsg);
+
+            ConfigureHeadersAndTimeout(_httpClient, headers, timeout);
+
+            var serviceRouteId = string.Format(urlFormat, serviceRoute, id);
+
+            if (!UseResilience)
             {
-                ConfigureHeadersAndTimeout(restCall, headers, timeout);
-
-                var serviceRouteId = string.Format(urlFormat, serviceRoute, id);
-                if (!UseResilience)
-                    response = await restCall.DeleteAsync(serviceRouteId);
-                else
-                {
-                    var resilienceSet = new ResilienceSet<T>(serviceRoute, HttpMethod.Delete, timeout, _callRetries, _retriesDelay);
-                    return await _resilienceManager.TryCall(resilienceSet);
-                }
-
+                var response = await _httpClient.DeleteAsync(serviceRouteId);
                 return response.IsSuccessStatusCode;
             }
-            throw new InvalidOperationException(emptySvcRouteMsg);
+            else
+            {
+                var resilienceSet = new ResilienceSet<T>(serviceRoute, HttpMethod.Delete, timeout, _callRetries, _retriesDelay);
+                return await _resilienceManager.TryCall(resilienceSet);
+            }
         }
 
-        public async Task<bool> DeleteWithParams(string serviceRoute, string parameters, 
+        public async Task<bool> DeleteWithParams(string serviceRoute, IDictionary<string, string> parameters,
                                                  IDictionary<string, string>? headers = null, int timeout = 0)
         {
-            using var restCall = new HttpClient();
-            if (!string.IsNullOrWhiteSpace(serviceRoute))
-            {
-                ConfigureHeadersAndTimeout(restCall, headers, timeout);
+            if (string.IsNullOrWhiteSpace(serviceRoute))
+                throw new InvalidOperationException(emptySvcRouteMsg);
 
-                var serviceRouteId = string.Format(urlParamFormat, serviceRoute, parameters);
-                if (!UseResilience)
-                    response = await restCall.DeleteAsync(serviceRouteId);
-                else
-                {
-                    var resilienceSet = new ResilienceSet<T>(serviceRoute, HttpMethod.Delete, timeout, _callRetries, _retriesDelay);
-                    return await _resilienceManager.TryCall(resilienceSet);
-                }
-
-                return response.IsSuccessStatusCode;
-            }
-            throw new InvalidOperationException(emptySvcRouteMsg);
+            var query = EncodeParameters(parameters);
+            var serviceRouteParam = string.Format(urlParamFormat, serviceRoute, query);
+            return await Delete(serviceRouteParam, string.Empty, headers, timeout);
         }
 
         #endregion
 
-        #region Public Sync Methods
+        #region Public Sync Methods (Worker-friendly)
 
         public T GetSync(string serviceRoute, IDictionary<string, string>? headers = null, int timeout = 0)
-        {
-            return Get(serviceRoute, headers, timeout).Result;
-        }
+            => Get(serviceRoute, headers, timeout).GetAwaiter().GetResult();
 
         public T GetSync(string serviceRoute, string id, IDictionary<string, string>? headers = null, int timeout = 0)
-        {
-            return Get(serviceRoute, id, headers, timeout).Result;
-        }
+            => Get(serviceRoute, id, headers, timeout).GetAwaiter().GetResult();
 
-        public T GetWithParamsSync(string serviceRoute, string parameters, IDictionary<string, string>? headers = null, int timeout = 0)
-        {
-            return GetWithParams(serviceRoute, parameters, headers, timeout).Result;
-        }
+        public T GetWithParamsSync(string serviceRoute, IDictionary<string, string> parameters,
+                                   IDictionary<string, string>? headers = null, int timeout = 0)
+            => GetWithParams(serviceRoute, parameters, headers, timeout).GetAwaiter().GetResult();
 
         public bool PostSync(string serviceRoute, T payLoad, IDictionary<string, string>? headers = null, int timeout = 0)
-        {
-            return Post(serviceRoute, payLoad, headers,timeout).Result;
-        }
+            => Post(serviceRoute, payLoad, headers, timeout).GetAwaiter().GetResult();
 
         public R PostWithResponseSync<R>(string serviceRoute, T payLoad, IDictionary<string, string>? headers = null, int timeout = 0)
-        {
-            return PostWithResponse<R>(serviceRoute, payLoad, headers, timeout).Result;
-        }
+            => PostWithResponse<R>(serviceRoute, payLoad, headers, timeout).GetAwaiter().GetResult();
 
         public bool PutSync(string serviceRoute, T payLoad, IDictionary<string, string>? headers = null, int timeout = 0)
-        {
-            return Put(serviceRoute, payLoad, headers, timeout).Result;
-        }
+            => Put(serviceRoute, payLoad, headers, timeout).GetAwaiter().GetResult();
 
         public R PutWithResponseSync<R>(string serviceRoute, T payLoad, IDictionary<string, string>? headers = null, int timeout = 0)
-        {
-            return PutWithResponse<R>(serviceRoute, payLoad, headers, timeout).Result;
-        }
+            => PutWithResponse<R>(serviceRoute, payLoad, headers, timeout).GetAwaiter().GetResult();
 
         public bool PatchSync(string serviceRoute, T payLoad, IDictionary<string, string>? headers = null, int timeout = 0)
-        {
-            return Patch(serviceRoute, payLoad, headers, timeout).Result;
-        }
+            => Patch(serviceRoute, payLoad, headers, timeout).GetAwaiter().GetResult();
 
         public R PatchWithResponseSync<R>(string serviceRoute, T payLoad, IDictionary<string, string>? headers = null, int timeout = 0)
-        {
-            return PatchWithResponse<R>(serviceRoute, payLoad, headers, timeout).Result;
-        }
+            => PatchWithResponse<R>(serviceRoute, payLoad, headers, timeout).GetAwaiter().GetResult();
 
         public bool DeleteSync(string serviceRoute, string id, IDictionary<string, string>? headers = null, int timeout = 0)
-        {
-            return Delete(serviceRoute, id, headers, timeout).Result;
-        }
+            => Delete(serviceRoute, id, headers, timeout).GetAwaiter().GetResult();
 
-        public bool DeleteWithParamsSync(string serviceRoute, string parameters, IDictionary<string, string>? headers = null, int timeout = 0)
-        {
-            return DeleteWithParams(serviceRoute, parameters, headers, timeout).Result;
-        }
+        public bool DeleteWithParamsSync(string serviceRoute, IDictionary<string, string> parameters,
+                                         IDictionary<string, string>? headers = null, int timeout = 0)
+            => DeleteWithParams(serviceRoute, parameters, headers, timeout).GetAwaiter().GetResult();
 
         #endregion
 
@@ -315,6 +242,8 @@ namespace Rochas.Net.Connectivity
 
         private static void ConfigureHeadersAndTimeout(HttpClient restCall, IDictionary<string, string>? headers = null, int timeout = 0)
         {
+            restCall.DefaultRequestHeaders.Clear();
+
             if (headers != null)
                 foreach (var header in headers)
                     restCall.DefaultRequestHeaders.Add(header.Key, header.Value);
@@ -323,47 +252,21 @@ namespace Rochas.Net.Connectivity
                 restCall.Timeout = TimeSpan.FromSeconds(timeout);
         }
 
-        private static string? EncodeParameterValues(string parameters)
+        private static string EncodeParameters(IDictionary<string, string> parameters)
         {
-            StringBuilder preResult = new StringBuilder();
-            var arrParams = parameters.Split('&');
-
-            foreach (var param in arrParams)
+            var query = new List<string>();
+            foreach (var param in parameters)
             {
-                var arrParamItem = param.Split('=');
-
-                // Two-pass encode for special chars
-                if (!arrParamItem[1].Contains("%"))
-                    arrParamItem[1] = HttpUtility.UrlEncode(arrParamItem[1]);
-
-                if (arrParamItem[1].Contains("+") || arrParamItem[1].Contains("/"))
-                    arrParamItem[1] = arrParamItem[1].Replace("+", "%2b").Replace("/", "2f");
-
-                preResult.Append(String.Join("=", arrParamItem));
-                preResult.Append("&");
+                var encodedKey = Uri.EscapeDataString(param.Key);
+                var encodedValue = Uri.EscapeDataString(param.Value);
+                query.Add($"{encodedKey}={encodedValue}");
             }
-
-            var result = preResult.ToString();
-
-            if (result.Length > 1)
-            {
-                if (result.EndsWith("==&"))
-                    return string.Concat(result.Substring(0, (result.Length - 3)), HttpUtility.UrlEncode("=="));
-                else if (result.EndsWith("=&"))
-                    return string.Concat(result.Substring(0, (result.Length - 2)), HttpUtility.UrlEncode("="));
-                else
-                    return result.Substring(0, (result.Length - 1));
-            }
-            else
-                return null;
+            return string.Join("&", query);
         }
 
         public void Dispose()
         {
-            if (_resilienceManager != null)
-                _resilienceManager.Dispose();
-
-            GC.ReRegisterForFinalize(this);
+            _resilienceManager?.Dispose();
         }
 
         #endregion

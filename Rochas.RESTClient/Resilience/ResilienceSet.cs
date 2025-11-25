@@ -10,7 +10,7 @@ namespace Rochas.Net.Connectivity
         {
         }
         public ResilienceSet(string route, HttpMethod method, int timeout, short retries, 
-                             int retriesDelay, IDictionary<string, string>? headers = null, T payLoad = default)
+                             int retriesDelay, IDictionary<string, string>? headers = null, T payLoad = default!)
         {
             PayLoad = payLoad;
 
