@@ -5,3 +5,9 @@
 /Rochas.RESTClient/obj
 /.vs
 /Rochas.RESTClient/bin
+
+# Test artifacts
+/Rochas.RESTClient.Tests/bin
+/Rochas.RESTClient.Tests/obj
+/Rochas.RESTClient.Tests/TestResults
+*.nupkg
